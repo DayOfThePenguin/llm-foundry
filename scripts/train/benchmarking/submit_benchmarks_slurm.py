@@ -212,23 +212,21 @@ def submit_job(cfg: Union[ListConfig, DictConfig]):
     Parameters:
     name (str): name of the run. used to create a unique slurm log directory
     """
-    slurm_ngpus = cfg.gpu_num
-
     # assuming 8x GPU per node, we need this many nodes
-    slurm_nnodes = math.ceil(slurm_ngpus / 8)
+    slurm_nnodes = math.ceil(cfg.gpu_num / cfg.gpus_per_node)
     slurm_timeout = 1024
-    # TODO: need to think about how to more smartly calculate this based on dataloader worker
-    # CPUs + expected CPU overhead for GPU control
-    workers = 10
+    # cpus calculation from https://github.com/facebookincubator/submitit/blob/main/submitit/slurm/slurm.py#L295
+    # TODO: this is actually big lowball compared to the 265 logical CPUs on a DGX...does perf improve if we make all cores available?
+    cpus_per_task = 2 * (cfg.train_loader.num_workers + cfg.gpus_per_node)
 
     slurm_directory = f"logs-{cfg.name}"
     executor = submitit.AutoExecutor(folder=slurm_directory)
 
     executor.update_parameters(
-        mem_gb=128 * slurm_ngpus,
-        gpus_per_node=slurm_ngpus,
-        tasks_per_node=slurm_ngpus,
-        cpus_per_task=workers,
+        mem_gb=128 * cfg.gpus_per_node,
+        gpus_per_node=cfg.gpus_per_node,
+        tasks_per_node=cfg.gpus_per_node,
+        cpus_per_task=cpus_per_task,
         nodes=slurm_nnodes,
         timeout_min=slurm_timeout,
         slurm_partition="gpu",
@@ -349,6 +347,10 @@ if __name__ == "__main__":
                             args.fsdp_config_activation_checkpointing
                         )
 
+                        # ...including the dataset locations
+                        # cfg.data_local = ""
+                        # cfg.data_remote = ""
+
                         # some of the command line args need to be added
                         cfg.model_yaml_name = model_yaml
                         cfg.project = args.project
@@ -357,6 +359,11 @@ if __name__ == "__main__":
                         # some other run-specific values need to be added
                         cfg.gpu_num = gpu_num
                         cfg.name = create_job_name(cfg)
+
+                        # set the number of GPUs per node...there doesn't seem to be a nice way
+                        # to use more/less on different nodes. So we'll just assume that we can use
+                        # all 8
+                        cfg.gpus_per_node = 8
 
                         print(cfg)
 

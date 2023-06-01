@@ -88,7 +88,7 @@ def validate_config(cfg: Union[ListConfig, DictConfig]):
             )
 
 
-def build_composer_model(model_cfg, tokenizer: Tokenizer):
+def build_composer_model(model_cfg: DictConfig, tokenizer: Tokenizer):
     warnings.filterwarnings(
         action="ignore",
         message="Torchmetrics v0.9 introduced a new argument class property",
@@ -103,19 +103,19 @@ def build_dataloader(
 ):
     if cfg.name == "text":
         return build_text_dataloader(
-            cfg,
+            cfg,  # type: ignore
             tokenizer,
             device_batch_size,
         )
     elif cfg.name == "text_denoising":
         return build_text_denoising_dataloader(
-            cfg,
+            cfg,  # type: ignore
             tokenizer,
             device_batch_size,
         )
     elif cfg.name == "finetuning":
         return build_finetuning_dataloader(
-            cfg,
+            cfg,  # type: ignore
             tokenizer,
             device_batch_size,
         )
@@ -133,7 +133,7 @@ def set_up_dist_env(cfg: Union[ListConfig, DictConfig]):
     local_rank = job_env.local_rank
 
     # 3. LOCAL_WORLD_SIZE
-    ngpus_per_node = torch.cuda.device_count()
+    ngpus_per_node = cfg.gpus_per_node
 
     # 4. WORLD_SIZE
     if os.getenv("SLURM_NNODES") is None:
@@ -326,4 +326,4 @@ if __name__ == "__main__":
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
-    main(cfg)
+    main(cfg)  # type: ignore
