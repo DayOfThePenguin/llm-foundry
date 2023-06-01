@@ -9,6 +9,7 @@ import argparse
 import logging
 import math
 import os
+import time
 
 from typing import Union
 
@@ -19,10 +20,10 @@ from omegaconf.dictconfig import DictConfig
 from omegaconf.listconfig import ListConfig
 
 # local imports
-from ..train import main
+from train import main
 
 logging.basicConfig(
-    format="%(asctime)s %(levelname)-8s %(message)s", level=logging.DEBUG
+    format="%(asctime)s %(levelname)-8s %(message)s", level=logging.INFO
 )
 
 
@@ -219,7 +220,7 @@ def submit_job(cfg: Union[ListConfig, DictConfig]):
     # TODO: this is actually big lowball compared to the 265 logical CPUs on a DGX...does perf improve if we make all cores available?
     cpus_per_task = 2 * (cfg.train_loader.num_workers + cfg.gpus_per_node)
 
-    slurm_directory = f"logs-{cfg.name}"
+    slurm_directory = f"/data/mpt-sweep/logs-{cfg.name}"
     executor = submitit.AutoExecutor(folder=slurm_directory)
 
     executor.update_parameters(
@@ -334,7 +335,7 @@ if __name__ == "__main__":
 
                     if run:
                         # load the relevant model configuration yaml
-                        yaml_path = os.path.join("../yamls/mpt", model_yaml)
+                        yaml_path = os.path.join("yamls/mpt", model_yaml)
                         with open(yaml_path) as f:
                             cfg = om.load(f)
 
@@ -348,8 +349,8 @@ if __name__ == "__main__":
                         )
 
                         # ...including the dataset locations
-                        # cfg.data_local = ""
-                        # cfg.data_remote = ""
+                        cfg.data_local = f"/datasets/{os.getuid()}/{time.time()}/my-local-c4"
+                        cfg.data_remote = "/data/my-copy-c4"
 
                         # some of the command line args need to be added
                         cfg.model_yaml_name = model_yaml

@@ -11,6 +11,7 @@ import warnings
 from typing import Union
 
 import submitit
+import torch
 
 from composer import Trainer
 from composer.core import Evaluator
@@ -41,7 +42,7 @@ from llmfoundry.utils.config_utils import log_config, update_batch_size_info
 Tokenizer = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 logging.basicConfig(
-    format="%(asctime)s %(levelname)-8s %(message)s", level=logging.DEBUG
+    format="%(asctime)s %(levelname)-8s %(message)s", level=logging.INFO
 )
 
 
@@ -128,9 +129,11 @@ def set_up_dist_env(cfg: Union[ListConfig, DictConfig]):
     # 1. RANK
     job_env = submitit.JobEnvironment()
     global_rank = job_env.global_rank
+    logging.info(job_env)
 
     # 2. LOCAL_RANK
     local_rank = job_env.local_rank
+    logging.info(local_rank)
 
     # 3. LOCAL_WORLD_SIZE
     ngpus_per_node = cfg.gpus_per_node
@@ -166,9 +169,12 @@ def set_up_dist_env(cfg: Union[ListConfig, DictConfig]):
     os.environ["MASTER_ADDR"] = host_name
     os.environ["MASTER_PORT"] = str(port)
     os.environ["PYTHONUNBUFFERED"] = "1"
-
+    os.environ["NCCL_DEBUG"] = "INFO"
+    os.environ["NCCL_ASYNC_ERROR_HANDLIG"] = "1"
 
 def main(cfg: DictConfig):
+    # TODO: is this necessary now that we've fixed the shared memory collisions?
+    torch.multiprocessing.set_sharing_strategy('file_system')
     # Check for incompatibilities between the model and data loaders
     validate_config(cfg)
 

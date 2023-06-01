@@ -2,6 +2,12 @@
 my-copy-c4*/
 *.jsonl*
 
+# slurm logs
+*.out
+*.err
+*.pkl
+*submission.sh
+
 # WandB
 wandb/
 
